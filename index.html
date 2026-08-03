@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CalcRoom — Calculator &amp; Math Quiz</title>
     <meta name="description" content="A fast dark-mode calculator with a mental math quiz mode." />
+    <script>
+      (function () {
+        try {
+          if (localStorage.getItem('calcroom-theme') === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,6 +1,7 @@
 import React from 'react';
-import { Calculator, HelpCircle } from 'lucide-react';
+import { Calculator, HelpCircle, Sun, Moon } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
+import { useSettings } from '@/src/lib/settings';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,6 +10,8 @@ interface LayoutProps {
 }
 
 export function Layout({ children, activeTab, onTabChange }: LayoutProps) {
+  const { theme, toggleTheme, language, setLanguage, t } = useSettings();
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-on-surface">
       {/* Top Bar */}
@@ -18,6 +21,40 @@ export function Layout({ children, activeTab, onTabChange }: LayoutProps) {
             <Calculator className="w-5 h-5 text-primary" />
           </div>
           <span className="text-xl font-bold tracking-tighter">CalcRoom</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? t('app.themeToLight') : t('app.themeToDark')}
+            className="p-2 rounded-lg hover:bg-surface-container-high transition-colors active:scale-95 duration-100"
+          >
+            {theme === 'dark' ? (
+              <Sun className="w-5 h-5 text-on-surface-variant" />
+            ) : (
+              <Moon className="w-5 h-5 text-on-surface-variant" />
+            )}
+          </button>
+          <div className="flex bg-surface-container-low rounded-lg p-0.5 text-[11px] font-bold">
+            <button
+              onClick={() => setLanguage('en')}
+              className={cn(
+                "px-2 py-1 rounded-md transition-colors",
+                language === 'en' ? "bg-primary text-on-primary" : "text-on-surface-variant hover:text-on-surface"
+              )}
+            >
+              EN
+            </button>
+            <button
+              onClick={() => setLanguage('de')}
+              className={cn(
+                "px-2 py-1 rounded-md transition-colors",
+                language === 'de' ? "bg-primary text-on-primary" : "text-on-surface-variant hover:text-on-surface"
+              )}
+            >
+              DE
+            </button>
+          </div>
         </div>
       </header>
 
@@ -36,7 +73,7 @@ export function Layout({ children, activeTab, onTabChange }: LayoutProps) {
           )}
         >
           <Calculator className={cn("w-6 h-6", activeTab === 'calculator' && "fill-primary/20")} />
-          <span className="text-[11px] font-medium">Calculator</span>
+          <span className="text-[11px] font-medium">{t('app.calculatorTab')}</span>
         </button>
         <button
           onClick={() => onTabChange('quiz')}
@@ -46,7 +83,7 @@ export function Layout({ children, activeTab, onTabChange }: LayoutProps) {
           )}
         >
           <HelpCircle className={cn("w-6 h-6", activeTab === 'quiz' && "fill-primary/20")} />
-          <span className="text-[11px] font-medium">Quiz</span>
+          <span className="text-[11px] font-medium">{t('app.quizTab')}</span>
         </button>
       </nav>
     </div>

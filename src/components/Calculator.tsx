@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Delete, Divide, X, Minus, Plus, Equal } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '@/src/lib/utils';
+import { useSettings } from '@/src/lib/settings';
 
 const MAX_DIGITS = 15;
 
 function formatDisplay(value: string): string {
-  if (value === 'Error') return value;
   const isNegative = value.startsWith('-');
   const unsigned = isNegative ? value.slice(1) : value;
   const [intPart, decimalPart] = unsigned.split('.');
@@ -16,6 +16,7 @@ function formatDisplay(value: string): string {
 }
 
 export function Calculator() {
+  const { t } = useSettings();
   const [display, setDisplay] = useState('0');
   const [history, setHistory] = useState('');
   const [prevValue, setPrevValue] = useState<number | null>(null);
@@ -133,6 +134,70 @@ export function Calculator() {
     setDisplay(prev => (prev.startsWith('-') ? prev.slice(1) : prev === '0' ? prev : `-${prev}`));
   };
 
+  const handlersRef = useRef({
+    handleDigit, handleDecimal, handleOperator, handleEqual, handleBackspace, handleClear, handlePercent,
+  });
+  useEffect(() => {
+    handlersRef.current = {
+      handleDigit, handleDecimal, handleOperator, handleEqual, handleBackspace, handleClear, handlePercent,
+    };
+  });
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const h = handlersRef.current;
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        h.handleDigit(e.key);
+        return;
+      }
+      switch (e.key) {
+        case '.':
+          e.preventDefault();
+          h.handleDecimal();
+          break;
+        case '+':
+          e.preventDefault();
+          h.handleOperator('+');
+          break;
+        case '-':
+          e.preventDefault();
+          h.handleOperator('−');
+          break;
+        case '*':
+          e.preventDefault();
+          h.handleOperator('×');
+          break;
+        case '/':
+          e.preventDefault();
+          h.handleOperator('÷');
+          break;
+        case 'Enter':
+        case '=':
+          e.preventDefault();
+          h.handleEqual();
+          break;
+        case 'Backspace':
+          e.preventDefault();
+          h.handleBackspace();
+          break;
+        case 'Escape':
+          e.preventDefault();
+          h.handleClear();
+          break;
+        case '%':
+          e.preventDefault();
+          h.handlePercent();
+          break;
+        default:
+          break;
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   return (
     <div className="flex flex-col h-full max-w-md mx-auto px-4 py-6">
       {/* Display Area */}
@@ -155,7 +220,7 @@ export function Calculator() {
               hasError ? "text-red-400" : "text-on-surface"
             )}
           >
-            {formatDisplay(display)}
+            {hasError ? t('calculator.error') : formatDisplay(display)}
           </motion.div>
         </div>
       </div>

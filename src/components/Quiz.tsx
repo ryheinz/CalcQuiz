@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Bolt, CheckCircle2, Delete, CornerDownLeft, RotateCcw, Trophy,
   Plus, Minus, X, Divide, Sparkles, ChevronLeft, Play,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
+import { useSettings } from '@/src/lib/settings';
 
 const ROUND_SECONDS = 60;
 const MAX_INPUT_LEN = 7;
@@ -21,22 +22,14 @@ interface Problem {
   answer: number;
 }
 
-const OPERATIONS: { id: Operation; label: string; icon: React.ReactNode }[] = [
-  { id: 'add', label: 'Add', icon: <Plus className="w-4 h-4" /> },
-  { id: 'subtract', label: 'Subtract', icon: <Minus className="w-4 h-4" /> },
-  { id: 'multiply', label: 'Multiply', icon: <X className="w-4 h-4" /> },
-  { id: 'divide', label: 'Divide', icon: <Divide className="w-4 h-4" /> },
+const OPERATIONS: { id: Operation; icon: React.ReactNode }[] = [
+  { id: 'add', icon: <Plus className="w-4 h-4" /> },
+  { id: 'subtract', icon: <Minus className="w-4 h-4" /> },
+  { id: 'multiply', icon: <X className="w-4 h-4" /> },
+  { id: 'divide', icon: <Divide className="w-4 h-4" /> },
 ];
 
-const OPERATION_LABELS: Record<Operation, string> = {
-  add: 'Add', subtract: 'Subtract', multiply: 'Multiply', divide: 'Divide',
-};
-
-const LEVELS: { value: Level; label: string }[] = [
-  { value: 1, label: '1-digit' },
-  { value: 2, label: '2-digit' },
-  { value: 3, label: '3-digit' },
-];
+const LEVEL_VALUES: Level[] = [1, 2, 3];
 
 const DEFAULT_LEVELS: Record<Operation, Level> = { add: 1, subtract: 1, multiply: 2, divide: 2 };
 
@@ -98,6 +91,7 @@ function buildProblem(operation: Operation, level: Level): Problem {
 }
 
 export function Quiz() {
+  const { t } = useSettings();
   const [operation, setOperation] = useState<Operation>(loadOperation);
   const [levels, setLevels] = useState<Record<Operation, Level>>(loadLevels);
   const [phase, setPhase] = useState<Phase>('setup');
@@ -108,7 +102,8 @@ export function Quiz() {
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS);
   const [showFeedback, setShowFeedback] = useState(false);
-  const [feedbackMessage, setFeedbackMessage] = useState('Correct! +10 Points');
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackKind, setFeedbackKind] = useState<'correct' | 'levelup'>('correct');
   const [showWrong, setShowWrong] = useState(false);
 
   useEffect(() => {
@@ -183,7 +178,8 @@ export function Quiz() {
         setLevels(prev => ({ ...prev, [operation]: nextLevel }));
       }
 
-      setFeedbackMessage(leveledUp ? `Leveled up — ${nextLevel}-digit unlocked!` : 'Correct! +10 Points');
+      setFeedbackMessage(leveledUp ? t('quiz.leveledUp', { level: t(`quiz.level.${nextLevel}`) }) : t('quiz.correct'));
+      setFeedbackKind(leveledUp ? 'levelup' : 'correct');
       setShowFeedback(true);
       setTimeout(() => {
         setShowFeedback(false);
@@ -196,6 +192,38 @@ export function Quiz() {
       setTimeout(() => setShowWrong(false), 400);
     }
   };
+
+  const handlersRef = useRef({ handleDigit, handleBackspace, checkAnswer, startRound, phase });
+  useEffect(() => {
+    handlersRef.current = { handleDigit, handleBackspace, checkAnswer, startRound, phase };
+  });
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const h = handlersRef.current;
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        h.handleDigit(e.key);
+        return;
+      }
+      if (e.key === 'Backspace') {
+        e.preventDefault();
+        h.handleBackspace();
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (h.phase === 'active') {
+          h.checkAnswer();
+        } else {
+          h.startRound();
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -211,17 +239,19 @@ export function Quiz() {
   const exprLength = `${problem.left}${problem.right}`.length;
   const problemSizeClass =
     exprLength >= 8 ? 'text-4xl' : exprLength >= 6 ? 'text-5xl' : exprLength >= 4 ? 'text-6xl' : 'text-7xl';
+  const operationLabel = t(`quiz.op.${operation}`);
+  const levelLabel = t(`quiz.level.${currentLevel}`);
 
   if (phase === 'setup') {
     return (
       <div className="flex flex-col h-full max-w-md mx-auto px-6 py-8 gap-6 items-center justify-center">
         <div className="text-center space-y-1">
-          <span className="text-on-surface-variant text-[10px] font-bold tracking-[0.2em] uppercase block">Mental Math</span>
-          <h1 className="text-3xl font-black tracking-tight text-on-surface">Choose your challenge</h1>
+          <span className="text-on-surface-variant text-[10px] font-bold tracking-[0.2em] uppercase block">{t('quiz.eyebrow')}</span>
+          <h1 className="text-3xl font-black tracking-tight text-on-surface">{t('quiz.setupTitle')}</h1>
         </div>
 
         <div className="w-full space-y-2">
-          <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider px-1">Operation</p>
+          <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider px-1">{t('quiz.operationLabel')}</p>
           <div className="grid grid-cols-2 gap-2">
             {OPERATIONS.map(op => (
               <button
@@ -235,34 +265,34 @@ export function Quiz() {
                 )}
               >
                 {op.icon}
-                {op.label}
+                {t(`quiz.op.${op.id}`)}
               </button>
             ))}
           </div>
         </div>
 
         <div className="w-full space-y-2">
-          <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider px-1">Number size</p>
+          <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider px-1">{t('quiz.sizeLabel')}</p>
           <div className="grid grid-cols-3 gap-2">
-            {LEVELS.map(lvl => (
+            {LEVEL_VALUES.map(lvl => (
               <button
-                key={lvl.value}
-                onClick={() => setLevels(prev => ({ ...prev, [operation]: lvl.value }))}
+                key={lvl}
+                onClick={() => setLevels(prev => ({ ...prev, [operation]: lvl }))}
                 className={cn(
                   "h-14 rounded-xl border font-bold text-sm transition-colors",
-                  levels[operation] === lvl.value
+                  levels[operation] === lvl
                     ? "bg-primary text-on-primary border-transparent"
                     : "bg-surface-container border-outline-variant text-on-surface hover:bg-surface-container-high"
                 )}
               >
-                {lvl.label}
+                {t(`quiz.level.${lvl}`)}
               </button>
             ))}
           </div>
         </div>
 
         <div className="w-full bg-surface-container border border-outline-variant rounded-2xl p-5 text-center">
-          <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider mb-2">Example</p>
+          <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider mb-2">{t('quiz.example')}</p>
           <p className="text-2xl font-black text-on-surface tracking-tight">
             {previewProblem.left} {previewProblem.operatorSymbol} {previewProblem.right} = <span className="text-primary">?</span>
           </p>
@@ -273,7 +303,7 @@ export function Quiz() {
           className="w-full flex items-center justify-center gap-2 h-14 rounded-2xl bg-primary text-on-primary font-bold text-lg hover:opacity-90 transition-colors"
         >
           <Play className="w-5 h-5 fill-current" />
-          Start Quiz
+          {t('quiz.startQuiz')}
         </button>
       </div>
     );
@@ -286,28 +316,28 @@ export function Quiz() {
           <Trophy className="w-8 h-8 text-tertiary" />
         </div>
         <div className="space-y-2">
-          <span className="text-on-surface-variant text-[10px] font-bold tracking-[0.2em] uppercase block">Time's Up</span>
+          <span className="text-on-surface-variant text-[10px] font-bold tracking-[0.2em] uppercase block">{t('quiz.timesUp')}</span>
           <h1 className="text-6xl font-black tracking-tighter text-on-surface">{score}</h1>
           <p className="text-on-surface-variant text-sm font-medium">
-            points scored · {OPERATION_LABELS[operation]} · {currentLevel}-digit
+            {t('quiz.pointsScored')} · {operationLabel} · {levelLabel}
           </p>
         </div>
         <div className="w-full bg-surface-container border border-outline-variant rounded-2xl p-5 flex items-center justify-center gap-4">
           <Bolt className="w-5 h-5 text-tertiary fill-tertiary" />
-          <p className="text-lg font-black text-on-surface">Best streak: {bestStreak}x</p>
+          <p className="text-lg font-black text-on-surface">{t('quiz.bestStreak', { n: bestStreak })}</p>
         </div>
         <button
           onClick={startRound}
           className="w-full flex items-center justify-center gap-2 h-14 rounded-2xl bg-primary text-on-primary font-bold text-lg hover:opacity-90 transition-colors"
         >
           <RotateCcw className="w-5 h-5" />
-          Play Again
+          {t('quiz.playAgain')}
         </button>
         <button
           onClick={() => setPhase('setup')}
           className="w-full flex items-center justify-center gap-2 h-12 rounded-2xl bg-surface-container border border-outline-variant text-on-surface font-semibold text-sm hover:bg-surface-container-high transition-colors"
         >
-          Change Scenario
+          {t('quiz.changeScenario')}
         </button>
       </div>
     );
@@ -322,17 +352,17 @@ export function Quiz() {
           className="flex items-center gap-1 text-xs font-bold text-on-surface-variant hover:text-on-surface transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
-          Change
+          {t('quiz.change')}
         </button>
         <button
           onClick={toggleLevel}
           className="flex items-center gap-1.5 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
         >
-          <span>{OPERATION_LABELS[operation]} · {currentLevel}-digit</span>
+          <span>{operationLabel} · {levelLabel}</span>
           {currentLevel < 3 ? (
             <span className="text-primary">({streak}/{LEVEL_UP_STREAK})</span>
           ) : (
-            <span className="text-tertiary">MAX</span>
+            <span className="text-tertiary">{t('quiz.max')}</span>
           )}
         </button>
       </div>
@@ -350,7 +380,7 @@ export function Quiz() {
 
       {/* Problem Display */}
       <div className="text-center space-y-2">
-        <span className="text-on-surface-variant text-[10px] font-bold tracking-[0.2em] uppercase block">Current Challenge</span>
+        <span className="text-on-surface-variant text-[10px] font-bold tracking-[0.2em] uppercase block">{t('quiz.currentChallenge')}</span>
         <div className="relative">
           <h1 className={cn(problemSizeClass, "font-black tracking-tighter text-on-surface")}>
             {problem.left} {problem.operatorSymbol} {problem.right} = <span className="text-primary">?</span>
@@ -363,7 +393,7 @@ export function Quiz() {
                 exit={{ opacity: 0, scale: 1.2 }}
                 className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 bg-tertiary/20 text-tertiary border border-tertiary/30 px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap"
               >
-                {feedbackMessage.startsWith('Leveled') ? (
+                {feedbackKind === 'levelup' ? (
                   <Sparkles className="w-4 h-4 fill-tertiary text-on-tertiary" />
                 ) : (
                   <CheckCircle2 className="w-4 h-4 fill-tertiary text-on-tertiary" />
@@ -386,7 +416,7 @@ export function Quiz() {
             !showWrong && (input ? "text-on-surface" : "text-on-surface-variant/30")
           )}
         >
-          {showWrong ? "Not quite — try again" : (input || "Type your answer...")}
+          {showWrong ? t('quiz.wrong') : (input || t('quiz.typeAnswer'))}
         </motion.div>
       </div>
 
@@ -411,11 +441,11 @@ export function Quiz() {
             <Bolt className="w-6 h-6 text-tertiary fill-tertiary" />
           </div>
           <div className="flex-1">
-            <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">Score · Streak</p>
+            <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">{t('quiz.scoreStreak')}</p>
             <p className="text-lg font-black text-on-surface">{score} pts · {streak}x</p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">Time</p>
+            <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">{t('quiz.time')}</p>
             <p className="text-xl font-mono font-black text-primary">{formatTime(timeLeft)}</p>
           </div>
         </div>
