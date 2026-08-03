@@ -151,19 +151,19 @@ export function Quiz() {
   }, [phase]);
 
   const handleDigit = (digit: string) => {
-    if (phase !== 'active' || showFeedback) return;
+    if (phase !== 'active' || showFeedback || showWrong) return;
     if (input.length < MAX_INPUT_LEN) {
       setInput(prev => prev + digit);
     }
   };
 
   const handleBackspace = () => {
-    if (phase !== 'active' || showFeedback) return;
+    if (phase !== 'active' || showFeedback || showWrong) return;
     setInput(prev => prev.slice(0, -1));
   };
 
   const checkAnswer = () => {
-    if (phase !== 'active' || showFeedback || input === '') return;
+    if (phase !== 'active' || showFeedback || showWrong || input === '') return;
     if (parseInt(input, 10) === problem.answer) {
       // Clear immediately so a repeated Enter/submit press during the
       // feedback animation can't re-score the same answer against the
@@ -192,14 +192,16 @@ export function Quiz() {
       }, 800);
     } else {
       setStreak(0);
-      setInput('');
       setShowWrong(true);
-      setTimeout(() => setShowWrong(false), 400);
+      setTimeout(() => {
+        setShowWrong(false);
+        generateProblem(operation, levels[operation]);
+      }, 1600);
     }
   };
 
   const skipProblem = () => {
-    if (phase !== 'active' || showFeedback) return;
+    if (phase !== 'active' || showFeedback || showWrong) return;
     setStreak(0);
     generateProblem(operation, levels[operation]);
   };
@@ -422,12 +424,12 @@ export function Quiz() {
           animate={showWrong ? { x: [0, -10, 10, -8, 8, 0] } : { x: 0 }}
           transition={{ duration: 0.4 }}
           className={cn(
-            "w-full bg-surface-container border rounded-2xl px-6 py-6 text-3xl font-mono text-center transition-colors",
-            showWrong ? "border-red-400 text-red-400" : "border-outline-variant",
+            "w-full bg-surface-container border rounded-2xl px-6 py-6 font-mono text-center transition-colors",
+            showWrong ? "border-red-400 text-red-400 text-lg font-semibold" : "border-outline-variant text-3xl",
             !showWrong && (input ? "text-on-surface" : "text-on-surface-variant/30")
           )}
         >
-          {showWrong ? t('quiz.wrong') : (input || t('quiz.typeAnswer'))}
+          {showWrong ? t('quiz.wrongDetail', { given: input, answer: problem.answer }) : (input || t('quiz.typeAnswer'))}
         </motion.div>
         <button
           onClick={skipProblem}
