@@ -38,6 +38,7 @@ const translations: Record<Language, Record<string, string>> = {
     'quiz.wrong': "Not quite — try again",
     'quiz.scoreStreak': 'Score · Streak',
     'quiz.time': 'Time',
+    'quiz.skip': 'Skip · New Problem',
 
     'quiz.timesUp': "Time's Up",
     'quiz.pointsScored': 'points scored',
@@ -76,6 +77,7 @@ const translations: Record<Language, Record<string, string>> = {
     'quiz.wrong': 'Nicht ganz — versuch\'s noch mal',
     'quiz.scoreStreak': 'Punkte · Serie',
     'quiz.time': 'Zeit',
+    'quiz.skip': 'Überspringen · Neue Aufgabe',
 
     'quiz.timesUp': 'Zeit ist um',
     'quiz.pointsScored': 'Punkte erzielt',

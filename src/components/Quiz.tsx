@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Bolt, CheckCircle2, Delete, CornerDownLeft, RotateCcw, Trophy,
-  Plus, Minus, X, Divide, Sparkles, ChevronLeft, Play,
+  Plus, Minus, X, Divide, Sparkles, ChevronLeft, Play, SkipForward,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
@@ -196,6 +196,12 @@ export function Quiz() {
       setShowWrong(true);
       setTimeout(() => setShowWrong(false), 400);
     }
+  };
+
+  const skipProblem = () => {
+    if (phase !== 'active' || showFeedback) return;
+    setStreak(0);
+    generateProblem(operation, levels[operation]);
   };
 
   const handlersRef = useRef({ handleDigit, handleBackspace, checkAnswer, startRound, phase });
@@ -423,6 +429,13 @@ export function Quiz() {
         >
           {showWrong ? t('quiz.wrong') : (input || t('quiz.typeAnswer'))}
         </motion.div>
+        <button
+          onClick={skipProblem}
+          className="w-full flex items-center justify-center gap-1.5 mt-2 py-1 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
+        >
+          <SkipForward className="w-3.5 h-3.5" />
+          {t('quiz.skip')}
+        </button>
       </div>
 
       {/* Custom Keypad */}
