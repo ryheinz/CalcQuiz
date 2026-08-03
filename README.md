@@ -1,20 +1,32 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# CalcRoom
 
-# Run and deploy your AI Studio app
+A dark-mode calculator with a mental math quiz mode, built with React, TypeScript, and Tailwind.
 
-This contains everything you need to run your app locally.
+**Live app:** https://ryheinz.github.io/CalcQuiz/
 
-View your app in AI Studio: https://ai.studio/apps/e92f1df8-6701-4080-9440-3f9d51fd2fad
+## Features
 
-## Run Locally
+- **Calculator** — standard arithmetic (+, −, ×, ÷), percent, sign toggle, backspace, thousands-separator formatting, and a proper error state on invalid operations like division by zero.
+- **Quiz** — 60-second timed mental-math round with streak tracking, score, wrong-answer feedback, and a game-over screen with a "Play Again" restart.
 
-**Prerequisites:**  Node.js
+## Run locally
 
+**Prerequisites:** Node.js 20+
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+```bash
+npm install
+npm run dev
+```
+
+The app opens at `http://localhost:3000`.
+
+## Build
+
+```bash
+npm run build
+npm run preview
+```
+
+## Deployment
+
+Pushes to `main` automatically build and deploy to GitHub Pages via `.github/workflows/deploy.yml`.

@@ -1,7 +1,19 @@
 import React, { useState } from 'react';
-import { Delete, Percent, Divide, X, Minus, Plus, Equal, ArrowLeftRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { Delete, Divide, X, Minus, Plus, Equal } from 'lucide-react';
+import { motion } from 'motion/react';
 import { cn } from '@/src/lib/utils';
+
+const MAX_DIGITS = 15;
+
+function formatDisplay(value: string): string {
+  if (value === 'Error') return value;
+  const isNegative = value.startsWith('-');
+  const unsigned = isNegative ? value.slice(1) : value;
+  const [intPart, decimalPart] = unsigned.split('.');
+  const groupedInt = Number(intPart || '0').toLocaleString('en-US');
+  const grouped = decimalPart !== undefined ? `${groupedInt}.${decimalPart}` : groupedInt;
+  return isNegative ? `-${grouped}` : grouped;
+}
 
 export function Calculator() {
   const [display, setDisplay] = useState('0');
@@ -9,17 +21,43 @@ export function Calculator() {
   const [prevValue, setPrevValue] = useState<number | null>(null);
   const [operator, setOperator] = useState<string | null>(null);
   const [waitingForOperand, setWaitingForOperand] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   const handleDigit = (digit: string) => {
+    if (hasError) {
+      setDisplay(digit);
+      setHasError(false);
+      setWaitingForOperand(false);
+      return;
+    }
     if (waitingForOperand) {
       setDisplay(digit);
       setWaitingForOperand(false);
     } else {
+      if (display.replace('-', '').replace('.', '').length >= MAX_DIGITS) return;
       setDisplay(display === '0' ? digit : display + digit);
     }
   };
 
+  const handleDecimal = () => {
+    if (hasError) {
+      setDisplay('0.');
+      setHasError(false);
+      setWaitingForOperand(false);
+      return;
+    }
+    if (waitingForOperand) {
+      setDisplay('0.');
+      setWaitingForOperand(false);
+      return;
+    }
+    if (!display.includes('.')) {
+      setDisplay(display + '.');
+    }
+  };
+
   const handleOperator = (nextOperator: string) => {
+    if (hasError) return;
     const inputValue = parseFloat(display);
 
     if (prevValue === null) {
@@ -33,10 +71,10 @@ export function Calculator() {
 
     setWaitingForOperand(true);
     setOperator(nextOperator);
-    setHistory(`${display} ${nextOperator}`);
+    setHistory(`${formatDisplay(display)} ${nextOperator}`);
   };
 
-  const performCalculation = (op: string, a: number, b: number) => {
+  const performCalculation = (op: string, a: number, b: number): number => {
     switch (op) {
       case '÷': return a / b;
       case '×': return a * b;
@@ -47,15 +85,25 @@ export function Calculator() {
   };
 
   const handleEqual = () => {
+    if (hasError || !operator || prevValue === null) return;
     const inputValue = parseFloat(display);
-    if (operator && prevValue !== null) {
-      const newValue = performCalculation(operator, prevValue, inputValue);
-      setDisplay(String(newValue));
+    const newValue = performCalculation(operator, prevValue, inputValue);
+
+    if (!Number.isFinite(newValue)) {
+      setDisplay('Error');
+      setHasError(true);
       setPrevValue(null);
       setOperator(null);
       setWaitingForOperand(true);
-      setHistory(`${prevValue} ${operator} ${inputValue} =`);
+      setHistory(`${formatDisplay(String(prevValue))} ${operator} ${formatDisplay(String(inputValue))} =`);
+      return;
     }
+
+    setDisplay(String(newValue));
+    setPrevValue(null);
+    setOperator(null);
+    setWaitingForOperand(true);
+    setHistory(`${formatDisplay(String(prevValue))} ${operator} ${formatDisplay(String(inputValue))} =`);
   };
 
   const handleClear = () => {
@@ -63,15 +111,26 @@ export function Calculator() {
     setPrevValue(null);
     setOperator(null);
     setWaitingForOperand(false);
+    setHasError(false);
     setHistory('');
   };
 
   const handleBackspace = () => {
+    if (hasError) {
+      handleClear();
+      return;
+    }
     setDisplay(display.length > 1 ? display.slice(0, -1) : '0');
   };
 
   const handlePercent = () => {
+    if (hasError) return;
     setDisplay(String(parseFloat(display) / 100));
+  };
+
+  const handleSignToggle = () => {
+    if (hasError) return;
+    setDisplay(prev => (prev.startsWith('-') ? prev.slice(1) : prev === '0' ? prev : `-${prev}`));
   };
 
   return (
@@ -85,15 +144,18 @@ export function Calculator() {
         </div>
         <div className="bg-surface-container rounded-2xl border border-outline-variant p-8 flex flex-col items-end justify-center min-h-[160px] shadow-2xl relative overflow-hidden group">
           <div className="absolute top-4 right-6 text-on-surface-variant/40 text-lg font-medium group-hover:text-on-surface-variant/60 transition-colors">
-            {operator && prevValue !== null ? `${prevValue} ${operator}` : ''}
+            {operator && prevValue !== null ? `${formatDisplay(String(prevValue))} ${operator}` : ''}
           </div>
-          <motion.div 
+          <motion.div
             key={display}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-on-surface text-6xl font-bold tracking-tighter leading-none truncate w-full text-right"
+            className={cn(
+              "text-6xl font-bold tracking-tighter leading-none truncate w-full text-right",
+              hasError ? "text-red-400" : "text-on-surface"
+            )}
           >
-            {display.toLocaleString()}
+            {formatDisplay(display)}
           </motion.div>
         </div>
       </div>
@@ -135,27 +197,14 @@ export function Calculator() {
         </CalcButton>
 
         {/* Row 5 */}
-        <CalcButton variant="surface-highest" className="text-tertiary">
-          <ArrowLeftRight className="w-5 h-5" />
+        <CalcButton onClick={handleSignToggle} variant="surface-highest" className="text-tertiary text-lg">
+          +/−
         </CalcButton>
         <CalcButton onClick={() => handleDigit('0')}>0</CalcButton>
-        <CalcButton onClick={() => handleDigit('.')}>.</CalcButton>
+        <CalcButton onClick={handleDecimal}>.</CalcButton>
         <CalcButton onClick={handleEqual} variant="tertiary">
           <Equal className="w-7 h-7" />
         </CalcButton>
-      </div>
-
-      {/* Mode Switch Footer */}
-      <div className="mt-8">
-        <div className="flex items-center justify-between p-4 bg-surface-container-low rounded-xl border border-outline-variant">
-          <div className="flex flex-col">
-            <span className="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">Active Mode</span>
-            <span className="text-sm text-on-surface font-semibold">Standard Arithmetic</span>
-          </div>
-          <button className="px-4 py-2 bg-surface-container-highest text-primary text-xs font-bold rounded-lg border border-primary/20 hover:bg-primary/10 transition-colors">
-            Mode Switch
-          </button>
-        </div>
       </div>
     </div>
   );

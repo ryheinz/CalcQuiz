@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calculator, HelpCircle, Settings } from 'lucide-react';
+import { Calculator, HelpCircle } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
 interface LayoutProps {
@@ -19,9 +19,6 @@ export function Layout({ children, activeTab, onTabChange }: LayoutProps) {
           </div>
           <span className="text-xl font-bold tracking-tighter">CalcRoom</span>
         </div>
-        <button className="hover:bg-surface-container-high transition-colors p-2 rounded-lg active:scale-95 duration-100">
-          <Settings className="w-5 h-5 text-on-surface-variant" />
-        </button>
       </header>
 
       {/* Main Content */}
