@@ -151,20 +151,25 @@ export function Quiz() {
   }, [phase]);
 
   const handleDigit = (digit: string) => {
-    if (phase !== 'active') return;
+    if (phase !== 'active' || showFeedback) return;
     if (input.length < MAX_INPUT_LEN) {
       setInput(prev => prev + digit);
     }
   };
 
   const handleBackspace = () => {
-    if (phase !== 'active') return;
+    if (phase !== 'active' || showFeedback) return;
     setInput(prev => prev.slice(0, -1));
   };
 
   const checkAnswer = () => {
-    if (phase !== 'active' || input === '') return;
+    if (phase !== 'active' || showFeedback || input === '') return;
     if (parseInt(input, 10) === problem.answer) {
+      // Clear immediately so a repeated Enter/submit press during the
+      // feedback animation can't re-score the same answer against the
+      // same (about to change) problem.
+      setInput('');
+
       const nextStreak = streak + 1;
       setStreak(nextStreak);
       setBestStreak(best => Math.max(best, nextStreak));
