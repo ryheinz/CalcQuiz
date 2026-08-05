@@ -216,9 +216,10 @@ export function Calculator() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className={cn(
-              "text-6xl font-bold tracking-tighter leading-none truncate w-full text-right",
+              "text-6xl font-bold tracking-tighter leading-none truncate w-full text-right notranslate",
               hasError ? "text-red-400" : "text-on-surface"
             )}
+            translate="no"
           >
             {hasError ? t('calculator.error') : formatDisplay(display)}
           </motion.div>

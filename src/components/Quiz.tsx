@@ -200,14 +200,14 @@ export function Quiz() {
       setWrongAttempts(attemptsSoFar);
       setShowWrong(true);
 
-      if (attemptsSoFar >= 2) {
-        // Second miss on this problem: reveal the answer and move on.
+      if (attemptsSoFar >= 3) {
+        // Third miss on this problem: reveal the answer and move on.
         setTimeout(() => {
           setShowWrong(false);
           generateProblem(operation, levels[operation]);
         }, 1600);
       } else {
-        // First miss: quick shake, give them a second chance at the same problem.
+        // First or second miss: quick shake, give another chance at the same problem.
         setTimeout(() => {
           setShowWrong(false);
           setInput('');
@@ -411,7 +411,7 @@ export function Quiz() {
       <div className="text-center space-y-2">
         <span className="text-on-surface-variant text-[10px] font-bold tracking-[0.2em] uppercase block">{t('quiz.currentChallenge')}</span>
         <div className="relative">
-          <h1 className={cn(problemSizeClass, "font-black tracking-tighter text-on-surface")}>
+          <h1 className={cn(problemSizeClass, "font-black tracking-tighter text-on-surface notranslate")} translate="no">
             {problem.left} {problem.operatorSymbol} {problem.right} = <span className="text-primary">?</span>
           </h1>
           <AnimatePresence>
@@ -440,15 +440,18 @@ export function Quiz() {
           animate={showWrong ? { x: [0, -10, 10, -8, 8, 0] } : { x: 0 }}
           transition={{ duration: 0.4 }}
           className={cn(
-            "w-full bg-surface-container border rounded-2xl px-6 py-6 font-mono text-center transition-colors",
-            showWrong && wrongAttempts >= 2 && "border-red-400 text-red-400 text-lg font-semibold",
-            showWrong && wrongAttempts < 2 && "border-red-400 text-red-400 text-3xl",
+            "w-full bg-surface-container border rounded-2xl px-6 py-6 font-mono text-center transition-colors notranslate",
+            showWrong && wrongAttempts >= 3 && "border-red-400 text-red-400 text-lg font-semibold",
+            showWrong && wrongAttempts < 3 && "border-red-400 text-red-400 text-3xl",
             !showWrong && "border-outline-variant text-3xl",
             !showWrong && (input ? "text-on-surface" : "text-on-surface-variant/30")
           )}
+          translate="no"
         >
           {showWrong
-            ? (wrongAttempts >= 2 ? t('quiz.wrongDetail', { given: input, answer: problem.answer }) : t('quiz.tryAgain'))
+            ? (wrongAttempts >= 3
+                ? t('quiz.wrongDetail', { given: input, answer: problem.answer })
+                : (wrongAttempts === 2 ? t('quiz.lastTry') : t('quiz.tryAgain')))
             : (input || t('quiz.typeAnswer'))}
         </motion.div>
         <button
