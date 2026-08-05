@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { useSettings } from '@/src/lib/settings';
 
-const ROUND_SECONDS = 60;
+const ROUND_SECONDS = 120;
 const MAX_INPUT_LEN = 7;
 const LEVEL_UP_STREAK = 8;
 
@@ -105,6 +105,7 @@ export function Quiz() {
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [feedbackKind, setFeedbackKind] = useState<'correct' | 'levelup'>('correct');
   const [showWrong, setShowWrong] = useState(false);
+  const [wrongAttempts, setWrongAttempts] = useState(0);
 
   useEffect(() => {
     window.localStorage.setItem(OPERATION_STORAGE_KEY, operation);
@@ -117,6 +118,7 @@ export function Quiz() {
   const generateProblem = useCallback((op: Operation, level: Level) => {
     setProblem(buildProblem(op, level));
     setInput('');
+    setWrongAttempts(0);
   }, []);
 
   const startRound = useCallback(() => {
@@ -136,7 +138,9 @@ export function Quiz() {
   };
 
   useEffect(() => {
-    if (phase !== 'active') return;
+    // Pause the countdown while a feedback/reveal animation is on screen so
+    // those brief locked windows don't silently eat into thinking time.
+    if (phase !== 'active' || showFeedback || showWrong) return;
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -148,7 +152,7 @@ export function Quiz() {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [phase]);
+  }, [phase, showFeedback, showWrong]);
 
   const handleDigit = (digit: string) => {
     if (phase !== 'active' || showFeedback || showWrong) return;
@@ -192,11 +196,23 @@ export function Quiz() {
       }, 800);
     } else {
       setStreak(0);
+      const attemptsSoFar = wrongAttempts + 1;
+      setWrongAttempts(attemptsSoFar);
       setShowWrong(true);
-      setTimeout(() => {
-        setShowWrong(false);
-        generateProblem(operation, levels[operation]);
-      }, 1600);
+
+      if (attemptsSoFar >= 2) {
+        // Second miss on this problem: reveal the answer and move on.
+        setTimeout(() => {
+          setShowWrong(false);
+          generateProblem(operation, levels[operation]);
+        }, 1600);
+      } else {
+        // First miss: quick shake, give them a second chance at the same problem.
+        setTimeout(() => {
+          setShowWrong(false);
+          setInput('');
+        }, 600);
+      }
     }
   };
 
@@ -425,11 +441,15 @@ export function Quiz() {
           transition={{ duration: 0.4 }}
           className={cn(
             "w-full bg-surface-container border rounded-2xl px-6 py-6 font-mono text-center transition-colors",
-            showWrong ? "border-red-400 text-red-400 text-lg font-semibold" : "border-outline-variant text-3xl",
+            showWrong && wrongAttempts >= 2 && "border-red-400 text-red-400 text-lg font-semibold",
+            showWrong && wrongAttempts < 2 && "border-red-400 text-red-400 text-3xl",
+            !showWrong && "border-outline-variant text-3xl",
             !showWrong && (input ? "text-on-surface" : "text-on-surface-variant/30")
           )}
         >
-          {showWrong ? t('quiz.wrongDetail', { given: input, answer: problem.answer }) : (input || t('quiz.typeAnswer'))}
+          {showWrong
+            ? (wrongAttempts >= 2 ? t('quiz.wrongDetail', { given: input, answer: problem.answer }) : t('quiz.tryAgain'))
+            : (input || t('quiz.typeAnswer'))}
         </motion.div>
         <button
           onClick={skipProblem}
