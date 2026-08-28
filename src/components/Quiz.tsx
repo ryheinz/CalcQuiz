@@ -13,7 +13,7 @@ const MAX_INPUT_LEN = 7;
 const RAMP_PROBLEMS = 12;
 
 type Operation = 'add' | 'subtract' | 'multiply' | 'divide';
-type Difficulty = 'easy' | 'hard' | 'master';
+type DigitMode = '1' | '2' | '3' | '23';
 type Phase = 'setup' | 'active' | 'gameover';
 
 interface Problem {
@@ -30,10 +30,11 @@ const OPERATIONS: { id: Operation; icon: React.ReactNode }[] = [
   { id: 'divide', icon: <Divide className="w-4 h-4" /> },
 ];
 
-const DIFFICULTY_VALUES: Difficulty[] = ['easy', 'hard', 'master'];
+const DIGIT_VALUES: DigitMode[] = ['1', '2', '3', '23'];
 
 const OPERATION_STORAGE_KEY = 'calcroom-quiz-operation';
-const DIFFICULTY_STORAGE_KEY = 'calcroom-quiz-difficulty';
+const DIGIT_STORAGE_KEY = 'calcroom-quiz-digits';
+const LEGACY_DIFFICULTY_STORAGE_KEY = 'calcroom-quiz-difficulty';
 const DURATION_STORAGE_KEY = 'calcroom-quiz-duration';
 
 function loadDuration(): number {
@@ -48,9 +49,14 @@ function loadOperation(): Operation {
   return saved === 'add' || saved === 'subtract' || saved === 'multiply' || saved === 'divide' ? saved : 'add';
 }
 
-function loadDifficulty(): Difficulty {
-  const saved = typeof window !== 'undefined' ? window.localStorage.getItem(DIFFICULTY_STORAGE_KEY) : null;
-  return saved === 'easy' || saved === 'hard' || saved === 'master' ? saved : 'hard';
+function loadDigitMode(): DigitMode {
+  const saved = typeof window !== 'undefined' ? window.localStorage.getItem(DIGIT_STORAGE_KEY) : null;
+  if (saved === '1' || saved === '2' || saved === '3' || saved === '23') return saved;
+  const legacy = typeof window !== 'undefined' ? window.localStorage.getItem(LEGACY_DIFFICULTY_STORAGE_KEY) : null;
+  if (legacy === 'easy') return '1';
+  if (legacy === 'master') return '3';
+  if (legacy === 'hard') return '23';
+  return '23';
 }
 
 function randomDigitNumber(digits: number): number {
@@ -64,50 +70,56 @@ function randomNumberInRange(min: number, max: number): number {
 }
 
 // Numbers start small and grow as the round progresses (progress: 0 → 1).
-// Easy: 1-digit, ramping from tiny (2–3) up to 9. Hard: 2-digit first, then
-// 2 & 3-digit mixed. Master: 3-digit, ramping from ~100 up to 999.
-function sampleOperand(difficulty: Difficulty, progress: number): number {
-  if (difficulty === 'easy') {
+// '1': 1-digit, ramping from tiny (2–3) up to 9.
+// '2': 2-digit, ramping from ~10 up to 99.
+// '3': 3-digit, ramping from ~100 up to 999.
+// '23': 2-digit first, then progressively 2 & 3-digit mixed.
+function sampleOperand(mode: DigitMode, progress: number): number {
+  if (mode === '1') {
     const top = 3 + Math.round(progress * 6);
     return randomNumberInRange(2, top);
   }
-  if (difficulty === 'master') {
+  if (mode === '3') {
     const min = 100 + Math.round(progress * 500);
     return randomNumberInRange(min, 999);
   }
-  const tripleChance = Math.min(1, Math.max(0, (progress - 0.3) / 0.7));
-  return randomDigitNumber(Math.random() < tripleChance ? 3 : 2);
+  if (mode === '23') {
+    const tripleChance = Math.min(1, Math.max(0, (progress - 0.3) / 0.7));
+    return randomDigitNumber(Math.random() < tripleChance ? 3 : 2);
+  }
+  const min = 10 + Math.round(progress * 60);
+  return randomNumberInRange(min, 99);
 }
 
-function buildProblem(operation: Operation, difficulty: Difficulty, progress: number): Problem {
+function buildProblem(operation: Operation, mode: DigitMode, progress: number): Problem {
   if (operation === 'multiply') {
-    const left = sampleOperand(difficulty, progress);
-    const right = sampleOperand(difficulty, progress);
+    const left = sampleOperand(mode, progress);
+    const right = sampleOperand(mode, progress);
     return { left, right, operatorSymbol: '×', answer: left * right };
   }
   if (operation === 'divide') {
-    const divisor = sampleOperand(difficulty, progress);
-    const quotient = sampleOperand(difficulty, progress);
+    const divisor = sampleOperand(mode, progress);
+    const quotient = sampleOperand(mode, progress);
     return { left: divisor * quotient, right: divisor, operatorSymbol: '÷', answer: quotient };
   }
   if (operation === 'subtract') {
-    const a = sampleOperand(difficulty, progress);
-    const b = sampleOperand(difficulty, progress);
+    const a = sampleOperand(mode, progress);
+    const b = sampleOperand(mode, progress);
     const left = Math.max(a, b);
     const right = Math.min(a, b);
     return { left, right, operatorSymbol: '−', answer: left - right };
   }
-  const left = sampleOperand(difficulty, progress);
-  const right = sampleOperand(difficulty, progress);
+  const left = sampleOperand(mode, progress);
+  const right = sampleOperand(mode, progress);
   return { left, right, operatorSymbol: '+', answer: left + right };
 }
 
 export function Quiz() {
   const { t } = useSettings();
   const [operation, setOperation] = useState<Operation>(loadOperation);
-  const [difficulty, setDifficulty] = useState<Difficulty>(loadDifficulty);
+  const [digitMode, setDigitMode] = useState<DigitMode>(loadDigitMode);
   const [phase, setPhase] = useState<Phase>('setup');
-  const [problem, setProblem] = useState<Problem>(() => buildProblem(loadOperation(), loadDifficulty(), 0));
+  const [problem, setProblem] = useState<Problem>(() => buildProblem(loadOperation(), loadDigitMode(), 0));
   const [input, setInput] = useState('');
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
@@ -127,8 +139,8 @@ export function Quiz() {
   }, [operation]);
 
   useEffect(() => {
-    window.localStorage.setItem(DIFFICULTY_STORAGE_KEY, difficulty);
-  }, [difficulty]);
+    window.localStorage.setItem(DIGIT_STORAGE_KEY, digitMode);
+  }, [digitMode]);
 
   useEffect(() => {
     window.localStorage.setItem(DURATION_STORAGE_KEY, String(duration));
@@ -136,11 +148,11 @@ export function Quiz() {
 
   const generateProblem = useCallback((op: Operation, problemNumber: number) => {
     const progress = Math.min(1, problemNumber / RAMP_PROBLEMS);
-    setProblem(buildProblem(op, difficulty, progress));
+    setProblem(buildProblem(op, digitMode, progress));
     setRoundIndex(problemNumber + 1);
     setInput('');
     setWrongAttempts(0);
-  }, [difficulty]);
+  }, [digitMode]);
 
   const startRound = useCallback(() => {
     setPhase('active');
@@ -270,7 +282,7 @@ export function Quiz() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const previewProblem = useMemo(() => buildProblem(operation, difficulty, 0.5), [operation, difficulty]);
+  const previewProblem = useMemo(() => buildProblem(operation, digitMode, 0.5), [operation, digitMode]);
 
   const progressPercent = (timeLeft / duration) * 100;
   const isLowTime = timeLeft <= 10;
@@ -278,7 +290,7 @@ export function Quiz() {
   const problemSizeClass =
     exprLength >= 8 ? 'text-4xl' : exprLength >= 6 ? 'text-5xl' : exprLength >= 4 ? 'text-6xl' : 'text-7xl';
   const operationLabel = t(`quiz.op.${operation}`);
-  const difficultyLabel = t(`quiz.difficulty.${difficulty}`);
+  const digitsLabel = t(`quiz.digits.${digitMode}`);
 
   if (phase === 'setup') {
     return (
@@ -310,24 +322,24 @@ export function Quiz() {
         </div>
 
         <div className="w-full space-y-2">
-          <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider px-1">{t('quiz.difficultyLabel')}</p>
-          <div className="grid grid-cols-3 gap-2">
-            {DIFFICULTY_VALUES.map(diff => (
+          <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider px-1">{t('quiz.sizeLabel')}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {DIGIT_VALUES.map(mode => (
               <button
-                key={diff}
-                onClick={() => setDifficulty(diff)}
+                key={mode}
+                onClick={() => setDigitMode(mode)}
                 className={cn(
                   "h-14 rounded-xl border font-bold text-sm transition-colors",
-                  difficulty === diff
+                  digitMode === mode
                     ? "bg-primary text-on-primary border-transparent"
                     : "bg-surface-container border-outline-variant text-on-surface hover:bg-surface-container-high"
                 )}
               >
-                {t(`quiz.difficulty.${diff}`)}
+                {t(`quiz.digits.${mode}`)}
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-on-surface-variant px-1">{t('quiz.difficultyHint')}</p>
+          <p className="text-[11px] text-on-surface-variant px-1">{t('quiz.sizeHint')}</p>
         </div>
 
         <div className="w-full space-y-2">
@@ -378,7 +390,7 @@ export function Quiz() {
           <span className="text-on-surface-variant text-[10px] font-bold tracking-[0.2em] uppercase block">{t('quiz.timesUp')}</span>
           <h1 className="text-6xl font-black tracking-tighter text-on-surface">{score}</h1>
           <p className="text-on-surface-variant text-sm font-medium">
-            {t('quiz.pointsScored')} · {operationLabel} · {difficultyLabel}
+            {t('quiz.pointsScored')} · {operationLabel} · {digitsLabel}
           </p>
         </div>
         <div className="w-full bg-surface-container border border-outline-variant rounded-2xl p-5 flex items-center justify-center gap-4">
@@ -413,7 +425,7 @@ export function Quiz() {
           <ChevronLeft className="w-4 h-4" />
           {t('quiz.change')}
         </button>
-        <span className="text-xs font-semibold text-on-surface-variant">{operationLabel} · {difficultyLabel}</span>
+        <span className="text-xs font-semibold text-on-surface-variant">{operationLabel} · {digitsLabel}</span>
       </div>
 
       {/* Progress Bar (time remaining) */}
