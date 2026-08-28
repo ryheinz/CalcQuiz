@@ -13,6 +13,16 @@ const translations: Record<Language, Record<string, string>> = {
     'app.themeToLight': 'Switch to light mode',
     'app.themeToDark': 'Switch to dark mode',
 
+    'app.wishTitle': 'Request a feature',
+    'app.wishSubtitle': 'Have an idea for CalcRoom? Share it — it may be built next.',
+    'app.wishPlaceholder': 'Describe your feature idea...',
+    'app.wishEmailPlaceholder': 'Your email (optional)',
+    'app.wishSubmit': 'Send idea',
+    'app.wishCancel': 'Cancel',
+    'app.wishClose': 'Close',
+    'app.wishSent': "Thanks! Your idea is on its way.",
+    'app.wishError': "Couldn't send. Please try again.",
+
     'calculator.error': 'Error',
 
     'quiz.eyebrow': 'Mental Math',
@@ -23,6 +33,7 @@ const translations: Record<Language, Record<string, string>> = {
     'quiz.op.multiply': 'Multiply',
     'quiz.op.divide': 'Divide',
     'quiz.sizeLabel': 'Number size',
+    'quiz.durationLabel': 'Time limit',
     'quiz.level.1': '1-digit',
     'quiz.level.2': '2-digit',
     'quiz.level.3': '3-digit',
@@ -40,6 +51,8 @@ const translations: Record<Language, Record<string, string>> = {
     'quiz.wrongDetail': 'You wrote {given} — the answer was {answer}',
     'quiz.scoreStreak': 'Score · Streak',
     'quiz.time': 'Time',
+    'quiz.pause': 'Pause',
+    'quiz.resume': 'Resume',
     'quiz.skip': 'Skip · New Problem',
 
     'quiz.timesUp': "Time's Up",
@@ -54,6 +67,16 @@ const translations: Record<Language, Record<string, string>> = {
     'app.themeToLight': 'Zum Hellmodus wechseln',
     'app.themeToDark': 'Zum Dunkelmodus wechseln',
 
+    'app.wishTitle': 'Feature anfragen',
+    'app.wishSubtitle': 'Hast du eine Idee für CalcRoom? Teile sie — sie wird vielleicht als Nächstes gebaut.',
+    'app.wishPlaceholder': 'Beschreibe deine Feature-Idee...',
+    'app.wishEmailPlaceholder': 'Deine E-Mail (optional)',
+    'app.wishSubmit': 'Idee senden',
+    'app.wishCancel': 'Abbrechen',
+    'app.wishClose': 'Schließen',
+    'app.wishSent': 'Danke! Deine Idee ist unterwegs.',
+    'app.wishError': 'Senden fehlgeschlagen. Bitte versuch es erneut.',
+
     'calculator.error': 'Fehler',
 
     'quiz.eyebrow': 'Kopfrechnen',
@@ -64,6 +87,7 @@ const translations: Record<Language, Record<string, string>> = {
     'quiz.op.multiply': 'Multiplizieren',
     'quiz.op.divide': 'Dividieren',
     'quiz.sizeLabel': 'Zahlengröße',
+    'quiz.durationLabel': 'Zeitlimit',
     'quiz.level.1': '1-stellig',
     'quiz.level.2': '2-stellig',
     'quiz.level.3': '3-stellig',
@@ -81,6 +105,8 @@ const translations: Record<Language, Record<string, string>> = {
     'quiz.wrongDetail': 'Du hast {given} geschrieben — die Antwort war {answer}',
     'quiz.scoreStreak': 'Punkte · Serie',
     'quiz.time': 'Zeit',
+    'quiz.pause': 'Pause',
+    'quiz.resume': 'Weiter',
     'quiz.skip': 'Überspringen · Neue Aufgabe',
 
     'quiz.timesUp': 'Zeit ist um',

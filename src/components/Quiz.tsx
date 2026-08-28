@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Bolt, CheckCircle2, Delete, CornerDownLeft, RotateCcw, Trophy,
-  Plus, Minus, X, Divide, Sparkles, ChevronLeft, Play, SkipForward,
+  Plus, Minus, X, Divide, Sparkles, ChevronLeft, Play, Pause, SkipForward,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { useSettings } from '@/src/lib/settings';
 
-const ROUND_SECONDS = 120;
+const DEFAULT_DURATION = 120;
+const DURATIONS = [30, 60, 90, 120];
 const MAX_INPUT_LEN = 7;
 const LEVEL_UP_STREAK = 8;
 
@@ -35,6 +36,14 @@ const DEFAULT_LEVELS: Record<Operation, Level> = { add: 1, subtract: 1, multiply
 
 const OPERATION_STORAGE_KEY = 'calcroom-quiz-operation';
 const LEVEL_STORAGE_KEY = 'calcroom-quiz-levels';
+const DURATION_STORAGE_KEY = 'calcroom-quiz-duration';
+
+function loadDuration(): number {
+  const saved = typeof window !== 'undefined' ? window.localStorage.getItem(DURATION_STORAGE_KEY) : null;
+  if (saved === null) return DEFAULT_DURATION;
+  const parsed = parseInt(saved, 10);
+  return DURATIONS.includes(parsed) ? parsed : DEFAULT_DURATION;
+}
 
 function loadOperation(): Operation {
   const saved = typeof window !== 'undefined' ? window.localStorage.getItem(OPERATION_STORAGE_KEY) : null;
@@ -100,7 +109,9 @@ export function Quiz() {
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
   const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS);
+  const [duration, setDuration] = useState<number>(loadDuration);
+  const [paused, setPaused] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(duration);
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [feedbackKind, setFeedbackKind] = useState<'correct' | 'levelup'>('correct');
@@ -115,6 +126,10 @@ export function Quiz() {
     window.localStorage.setItem(LEVEL_STORAGE_KEY, JSON.stringify(levels));
   }, [levels]);
 
+  useEffect(() => {
+    window.localStorage.setItem(DURATION_STORAGE_KEY, String(duration));
+  }, [duration]);
+
   const generateProblem = useCallback((op: Operation, level: Level) => {
     setProblem(buildProblem(op, level));
     setInput('');
@@ -125,11 +140,12 @@ export function Quiz() {
     setPhase('active');
     setStreak(0);
     setScore(0);
-    setTimeLeft(ROUND_SECONDS);
+    setTimeLeft(duration);
+    setPaused(false);
     setShowWrong(false);
     setShowFeedback(false);
     generateProblem(operation, levels[operation]);
-  }, [generateProblem, operation, levels]);
+  }, [generateProblem, operation, levels, duration]);
 
   const toggleLevel = () => {
     const newLevel = ((levels[operation] % 3) + 1) as Level;
@@ -138,9 +154,9 @@ export function Quiz() {
   };
 
   useEffect(() => {
-    // Pause the countdown while a feedback/reveal animation is on screen so
-    // those brief locked windows don't silently eat into thinking time.
-    if (phase !== 'active' || showFeedback || showWrong) return;
+    // Pause the countdown while the timer is paused or a feedback/reveal
+    // animation is on screen so those locked windows don't eat into thinking time.
+    if (phase !== 'active' || paused || showFeedback || showWrong) return;
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -152,7 +168,9 @@ export function Quiz() {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [phase, showFeedback, showWrong]);
+  }, [phase, paused, showFeedback, showWrong]);
+
+  const togglePause = () => setPaused(prev => !prev);
 
   const handleDigit = (digit: string) => {
     if (phase !== 'active' || showFeedback || showWrong) return;
@@ -262,7 +280,7 @@ export function Quiz() {
 
   const previewProblem = useMemo(() => buildProblem(operation, levels[operation]), [operation, levels]);
 
-  const progressPercent = (timeLeft / ROUND_SECONDS) * 100;
+  const progressPercent = (timeLeft / duration) * 100;
   const isLowTime = timeLeft <= 10;
   const currentLevel = levels[operation];
   const exprLength = `${problem.left}${problem.right}`.length;
@@ -315,6 +333,26 @@ export function Quiz() {
                 )}
               >
                 {t(`quiz.level.${lvl}`)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="w-full space-y-2">
+          <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider px-1">{t('quiz.durationLabel')}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {DURATIONS.map(secs => (
+              <button
+                key={secs}
+                onClick={() => setDuration(secs)}
+                className={cn(
+                  "h-14 rounded-xl border font-bold text-sm transition-colors",
+                  duration === secs
+                    ? "bg-primary text-on-primary border-transparent"
+                    : "bg-surface-container border-outline-variant text-on-surface hover:bg-surface-container-high"
+                )}
+              >
+                {formatTime(secs)}
               </button>
             ))}
           </div>
@@ -489,7 +527,22 @@ export function Quiz() {
           </div>
           <div className="text-right">
             <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">{t('quiz.time')}</p>
-            <p className="text-xl font-mono font-black text-primary">{formatTime(timeLeft)}</p>
+            <div className="flex items-center justify-end gap-1.5">
+              <motion.button
+                whileTap={{ scale: 0.85 }}
+                onClick={togglePause}
+                aria-label={paused ? t('quiz.resume') : t('quiz.pause')}
+                className={cn(
+                  "w-7 h-7 rounded-lg flex items-center justify-center border transition-colors",
+                  paused
+                    ? "bg-tertiary/20 text-tertiary border-tertiary/40"
+                    : "bg-surface-container-low text-on-surface-variant border-outline-variant hover:bg-surface-container-high hover:text-on-surface"
+                )}
+              >
+                {paused ? <Play className="w-3.5 h-3.5 fill-current" /> : <Pause className="w-3.5 h-3.5 fill-current" />}
+              </motion.button>
+              <p className={cn("text-xl font-mono font-black", paused ? "text-tertiary" : "text-primary")}>{formatTime(timeLeft)}</p>
+            </div>
           </div>
         </div>
       </div>

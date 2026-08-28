@@ -2,6 +2,7 @@ import React from 'react';
 import { Calculator, HelpCircle, Sun, Moon } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useSettings } from '@/src/lib/settings';
+import { FeatureWish } from './FeatureWish';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -24,6 +25,7 @@ export function Layout({ children, activeTab, onTabChange }: LayoutProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          <FeatureWish />
           <button
             onClick={toggleTheme}
             aria-label={theme === 'dark' ? t('app.themeToLight') : t('app.themeToDark')}
