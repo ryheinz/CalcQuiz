@@ -36,6 +36,7 @@ export function FeatureWish() {
       body.append('_subject', 'CalcRoom feature request');
       body.append('_template', 'table');
       body.append('_captcha', 'false');
+      body.append('_url', 'https://ryheinz.github.io/CalcQuiz/');
       body.append('_honey', '');
 
       const res = await fetch(FORM_URL, { method: 'POST', body });
