@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Bolt, CheckCircle2, Delete, CornerDownLeft, RotateCcw, Trophy,
-  Plus, Minus, X, Divide, Sparkles, ChevronLeft, Play, Pause, SkipForward,
+  Plus, Minus, X, Divide, ChevronLeft, Play, Pause, SkipForward,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
@@ -10,10 +10,10 @@ import { useSettings } from '@/src/lib/settings';
 const DEFAULT_DURATION = 120;
 const DURATIONS = [30, 60, 90, 120];
 const MAX_INPUT_LEN = 7;
-const LEVEL_UP_STREAK = 8;
+const RAMP_PROBLEMS = 12;
 
 type Operation = 'add' | 'subtract' | 'multiply' | 'divide';
-type Level = 1 | 2 | 3;
+type Difficulty = 'easy' | 'hard' | 'master';
 type Phase = 'setup' | 'active' | 'gameover';
 
 interface Problem {
@@ -30,12 +30,10 @@ const OPERATIONS: { id: Operation; icon: React.ReactNode }[] = [
   { id: 'divide', icon: <Divide className="w-4 h-4" /> },
 ];
 
-const LEVEL_VALUES: Level[] = [1, 2, 3];
-
-const DEFAULT_LEVELS: Record<Operation, Level> = { add: 1, subtract: 1, multiply: 2, divide: 2 };
+const DIFFICULTY_VALUES: Difficulty[] = ['easy', 'hard', 'master'];
 
 const OPERATION_STORAGE_KEY = 'calcroom-quiz-operation';
-const LEVEL_STORAGE_KEY = 'calcroom-quiz-levels';
+const DIFFICULTY_STORAGE_KEY = 'calcroom-quiz-difficulty';
 const DURATION_STORAGE_KEY = 'calcroom-quiz-duration';
 
 function loadDuration(): number {
@@ -50,24 +48,9 @@ function loadOperation(): Operation {
   return saved === 'add' || saved === 'subtract' || saved === 'multiply' || saved === 'divide' ? saved : 'add';
 }
 
-function isValidLevel(value: unknown): value is Level {
-  return value === 1 || value === 2 || value === 3;
-}
-
-function loadLevels(): Record<Operation, Level> {
-  try {
-    const saved = typeof window !== 'undefined' ? window.localStorage.getItem(LEVEL_STORAGE_KEY) : null;
-    if (!saved) return { ...DEFAULT_LEVELS };
-    const parsed = JSON.parse(saved);
-    return {
-      add: isValidLevel(parsed.add) ? parsed.add : DEFAULT_LEVELS.add,
-      subtract: isValidLevel(parsed.subtract) ? parsed.subtract : DEFAULT_LEVELS.subtract,
-      multiply: isValidLevel(parsed.multiply) ? parsed.multiply : DEFAULT_LEVELS.multiply,
-      divide: isValidLevel(parsed.divide) ? parsed.divide : DEFAULT_LEVELS.divide,
-    };
-  } catch {
-    return { ...DEFAULT_LEVELS };
-  }
+function loadDifficulty(): Difficulty {
+  const saved = typeof window !== 'undefined' ? window.localStorage.getItem(DIFFICULTY_STORAGE_KEY) : null;
+  return saved === 'easy' || saved === 'hard' || saved === 'master' ? saved : 'hard';
 }
 
 function randomDigitNumber(digits: number): number {
@@ -76,45 +59,66 @@ function randomDigitNumber(digits: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function buildProblem(operation: Operation, level: Level): Problem {
+function randomNumberInRange(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// Numbers start small and grow as the round progresses (progress: 0 → 1).
+// Easy: 1-digit, ramping from tiny (2–3) up to 9. Hard: 2-digit first, then
+// 2 & 3-digit mixed. Master: 3-digit, ramping from ~100 up to 999.
+function sampleOperand(difficulty: Difficulty, progress: number): number {
+  if (difficulty === 'easy') {
+    const top = 3 + Math.round(progress * 6);
+    return randomNumberInRange(2, top);
+  }
+  if (difficulty === 'master') {
+    const min = 100 + Math.round(progress * 500);
+    return randomNumberInRange(min, 999);
+  }
+  const tripleChance = Math.min(1, Math.max(0, (progress - 0.3) / 0.7));
+  return randomDigitNumber(Math.random() < tripleChance ? 3 : 2);
+}
+
+function buildProblem(operation: Operation, difficulty: Difficulty, progress: number): Problem {
   if (operation === 'multiply') {
-    const left = randomDigitNumber(level);
-    const right = randomDigitNumber(level);
+    const left = sampleOperand(difficulty, progress);
+    const right = sampleOperand(difficulty, progress);
     return { left, right, operatorSymbol: '×', answer: left * right };
   }
   if (operation === 'divide') {
-    const divisor = randomDigitNumber(level);
-    const quotient = randomDigitNumber(level);
+    const divisor = sampleOperand(difficulty, progress);
+    const quotient = sampleOperand(difficulty, progress);
     return { left: divisor * quotient, right: divisor, operatorSymbol: '÷', answer: quotient };
   }
   if (operation === 'subtract') {
-    const a = randomDigitNumber(level);
-    const b = randomDigitNumber(level);
+    const a = sampleOperand(difficulty, progress);
+    const b = sampleOperand(difficulty, progress);
     const left = Math.max(a, b);
     const right = Math.min(a, b);
     return { left, right, operatorSymbol: '−', answer: left - right };
   }
-  const left = randomDigitNumber(level);
-  const right = randomDigitNumber(level);
+  const left = sampleOperand(difficulty, progress);
+  const right = sampleOperand(difficulty, progress);
   return { left, right, operatorSymbol: '+', answer: left + right };
 }
 
 export function Quiz() {
   const { t } = useSettings();
   const [operation, setOperation] = useState<Operation>(loadOperation);
-  const [levels, setLevels] = useState<Record<Operation, Level>>(loadLevels);
+  const [difficulty, setDifficulty] = useState<Difficulty>(loadDifficulty);
   const [phase, setPhase] = useState<Phase>('setup');
-  const [problem, setProblem] = useState<Problem>(() => buildProblem(loadOperation(), loadLevels()[loadOperation()]));
+  const [problem, setProblem] = useState<Problem>(() => buildProblem(loadOperation(), loadDifficulty(), 0));
   const [input, setInput] = useState('');
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
   const [score, setScore] = useState(0);
+  const [roundIndex, setRoundIndex] = useState(0);
   const [duration, setDuration] = useState<number>(loadDuration);
   const [paused, setPaused] = useState(false);
   const [timeLeft, setTimeLeft] = useState(duration);
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
-  const [feedbackKind, setFeedbackKind] = useState<'correct' | 'levelup'>('correct');
+  const [feedbackKind, setFeedbackKind] = useState<'correct'>('correct');
   const [showWrong, setShowWrong] = useState(false);
   const [wrongAttempts, setWrongAttempts] = useState(0);
 
@@ -123,18 +127,20 @@ export function Quiz() {
   }, [operation]);
 
   useEffect(() => {
-    window.localStorage.setItem(LEVEL_STORAGE_KEY, JSON.stringify(levels));
-  }, [levels]);
+    window.localStorage.setItem(DIFFICULTY_STORAGE_KEY, difficulty);
+  }, [difficulty]);
 
   useEffect(() => {
     window.localStorage.setItem(DURATION_STORAGE_KEY, String(duration));
   }, [duration]);
 
-  const generateProblem = useCallback((op: Operation, level: Level) => {
-    setProblem(buildProblem(op, level));
+  const generateProblem = useCallback((op: Operation, problemNumber: number) => {
+    const progress = Math.min(1, problemNumber / RAMP_PROBLEMS);
+    setProblem(buildProblem(op, difficulty, progress));
+    setRoundIndex(problemNumber + 1);
     setInput('');
     setWrongAttempts(0);
-  }, []);
+  }, [difficulty]);
 
   const startRound = useCallback(() => {
     setPhase('active');
@@ -144,14 +150,10 @@ export function Quiz() {
     setPaused(false);
     setShowWrong(false);
     setShowFeedback(false);
-    generateProblem(operation, levels[operation]);
-  }, [generateProblem, operation, levels, duration]);
+    generateProblem(operation, 0);
+  }, [generateProblem, operation, duration]);
 
-  const toggleLevel = () => {
-    const newLevel = ((levels[operation] % 3) + 1) as Level;
-    setLevels(prev => ({ ...prev, [operation]: newLevel }));
-    generateProblem(operation, newLevel);
-  };
+  const togglePause = () => setPaused(prev => !prev);
 
   useEffect(() => {
     // Pause the countdown while the timer is paused or a feedback/reveal
@@ -169,8 +171,6 @@ export function Quiz() {
     }, 1000);
     return () => clearInterval(timer);
   }, [phase, paused, showFeedback, showWrong]);
-
-  const togglePause = () => setPaused(prev => !prev);
 
   const handleDigit = (digit: string) => {
     if (phase !== 'active' || showFeedback || showWrong) return;
@@ -197,20 +197,12 @@ export function Quiz() {
       setBestStreak(best => Math.max(best, nextStreak));
       setScore(prev => prev + 10);
 
-      let nextLevel = levels[operation];
-      let leveledUp = false;
-      if (levels[operation] < 3 && nextStreak === LEVEL_UP_STREAK) {
-        nextLevel = (levels[operation] + 1) as Level;
-        leveledUp = true;
-        setLevels(prev => ({ ...prev, [operation]: nextLevel }));
-      }
-
-      setFeedbackMessage(leveledUp ? t('quiz.leveledUp', { level: t(`quiz.level.${nextLevel}`) }) : t('quiz.correct'));
-      setFeedbackKind(leveledUp ? 'levelup' : 'correct');
+      setFeedbackMessage(t('quiz.correct'));
+      setFeedbackKind('correct');
       setShowFeedback(true);
       setTimeout(() => {
         setShowFeedback(false);
-        generateProblem(operation, nextLevel);
+        generateProblem(operation, roundIndex);
       }, 800);
     } else {
       setStreak(0);
@@ -222,7 +214,7 @@ export function Quiz() {
         // Third miss on this problem: reveal the answer and move on.
         setTimeout(() => {
           setShowWrong(false);
-          generateProblem(operation, levels[operation]);
+          generateProblem(operation, roundIndex);
         }, 1600);
       } else {
         // First or second miss: quick shake, give another chance at the same problem.
@@ -237,7 +229,7 @@ export function Quiz() {
   const skipProblem = () => {
     if (phase !== 'active' || showFeedback || showWrong) return;
     setStreak(0);
-    generateProblem(operation, levels[operation]);
+    generateProblem(operation, roundIndex);
   };
 
   const handlersRef = useRef({ handleDigit, handleBackspace, checkAnswer, startRound, phase });
@@ -278,16 +270,15 @@ export function Quiz() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const previewProblem = useMemo(() => buildProblem(operation, levels[operation]), [operation, levels]);
+  const previewProblem = useMemo(() => buildProblem(operation, difficulty, 0.5), [operation, difficulty]);
 
   const progressPercent = (timeLeft / duration) * 100;
   const isLowTime = timeLeft <= 10;
-  const currentLevel = levels[operation];
   const exprLength = `${problem.left}${problem.right}`.length;
   const problemSizeClass =
     exprLength >= 8 ? 'text-4xl' : exprLength >= 6 ? 'text-5xl' : exprLength >= 4 ? 'text-6xl' : 'text-7xl';
   const operationLabel = t(`quiz.op.${operation}`);
-  const levelLabel = t(`quiz.level.${currentLevel}`);
+  const difficultyLabel = t(`quiz.difficulty.${difficulty}`);
 
   if (phase === 'setup') {
     return (
@@ -319,23 +310,24 @@ export function Quiz() {
         </div>
 
         <div className="w-full space-y-2">
-          <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider px-1">{t('quiz.sizeLabel')}</p>
+          <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider px-1">{t('quiz.difficultyLabel')}</p>
           <div className="grid grid-cols-3 gap-2">
-            {LEVEL_VALUES.map(lvl => (
+            {DIFFICULTY_VALUES.map(diff => (
               <button
-                key={lvl}
-                onClick={() => setLevels(prev => ({ ...prev, [operation]: lvl }))}
+                key={diff}
+                onClick={() => setDifficulty(diff)}
                 className={cn(
                   "h-14 rounded-xl border font-bold text-sm transition-colors",
-                  levels[operation] === lvl
+                  difficulty === diff
                     ? "bg-primary text-on-primary border-transparent"
                     : "bg-surface-container border-outline-variant text-on-surface hover:bg-surface-container-high"
                 )}
               >
-                {t(`quiz.level.${lvl}`)}
+                {t(`quiz.difficulty.${diff}`)}
               </button>
             ))}
           </div>
+          <p className="text-[11px] text-on-surface-variant px-1">{t('quiz.difficultyHint')}</p>
         </div>
 
         <div className="w-full space-y-2">
@@ -386,7 +378,7 @@ export function Quiz() {
           <span className="text-on-surface-variant text-[10px] font-bold tracking-[0.2em] uppercase block">{t('quiz.timesUp')}</span>
           <h1 className="text-6xl font-black tracking-tighter text-on-surface">{score}</h1>
           <p className="text-on-surface-variant text-sm font-medium">
-            {t('quiz.pointsScored')} · {operationLabel} · {levelLabel}
+            {t('quiz.pointsScored')} · {operationLabel} · {difficultyLabel}
           </p>
         </div>
         <div className="w-full bg-surface-container border border-outline-variant rounded-2xl p-5 flex items-center justify-center gap-4">
@@ -421,17 +413,7 @@ export function Quiz() {
           <ChevronLeft className="w-4 h-4" />
           {t('quiz.change')}
         </button>
-        <button
-          onClick={toggleLevel}
-          className="flex items-center gap-1.5 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
-        >
-          <span>{operationLabel} · {levelLabel}</span>
-          {currentLevel < 3 ? (
-            <span className="text-primary">({streak}/{LEVEL_UP_STREAK})</span>
-          ) : (
-            <span className="text-tertiary">{t('quiz.max')}</span>
-          )}
-        </button>
+        <span className="text-xs font-semibold text-on-surface-variant">{operationLabel} · {difficultyLabel}</span>
       </div>
 
       {/* Progress Bar (time remaining) */}
@@ -460,11 +442,7 @@ export function Quiz() {
                 exit={{ opacity: 0, scale: 1.2 }}
                 className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 bg-tertiary/20 text-tertiary border border-tertiary/30 px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap"
               >
-                {feedbackKind === 'levelup' ? (
-                  <Sparkles className="w-4 h-4 fill-tertiary text-on-tertiary" />
-                ) : (
-                  <CheckCircle2 className="w-4 h-4 fill-tertiary text-on-tertiary" />
-                )}
+                <CheckCircle2 className="w-4 h-4 fill-tertiary text-on-tertiary" />
                 {feedbackMessage}
               </motion.div>
             )}
