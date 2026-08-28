@@ -25,7 +25,6 @@ export function Layout({ children, activeTab, onTabChange }: LayoutProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          <FeatureWish />
           <button
             onClick={toggleTheme}
             aria-label={theme === 'dark' ? t('app.themeToLight') : t('app.themeToDark')}
@@ -77,6 +76,7 @@ export function Layout({ children, activeTab, onTabChange }: LayoutProps) {
           <Calculator className={cn("w-6 h-6", activeTab === 'calculator' && "fill-primary/20")} />
           <span className="text-[11px] font-medium">{t('app.calculatorTab')}</span>
         </button>
+        <FeatureWish />
         <button
           onClick={() => onTabChange('quiz')}
           className={cn(

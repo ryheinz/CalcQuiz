@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { AlertTriangle, CheckCircle2, Lightbulb, Send, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Send, Sparkles, X } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useSettings } from '@/src/lib/settings';
 
@@ -60,29 +60,32 @@ export function FeatureWish() {
           setOpen(true);
           setStatus('idle');
         }}
-        aria-label={t('app.wishTitle')}
-        title={t('app.wishTitle')}
-        className="p-2 rounded-lg hover:bg-surface-container-high transition-colors active:scale-95 duration-100"
+        aria-label={t('app.wishNav')}
+        title={t('app.wishNav')}
+        className="flex flex-col items-center justify-center gap-1 px-4 py-1 rounded-2xl bg-tertiary/20 text-tertiary border border-tertiary/30 hover:bg-tertiary/30 active:scale-95 transition-all"
       >
-        <Lightbulb className="w-5 h-5 text-on-surface-variant" />
+        <Sparkles className="w-5 h-5" />
+        <span className="text-[11px] font-semibold">{t('app.wishNav')}</span>
       </button>
 
       <AnimatePresence>
         {open && (
           <motion.div
-            className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+            className="fixed inset-0 z-[60] flex items-end justify-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={reset} />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 16 }}
-              transition={{ duration: 0.18 }}
-              className="relative w-full max-w-sm bg-surface border border-outline-variant rounded-2xl p-6 space-y-4"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+              className="relative w-full max-w-md bg-surface border-t border-outline-variant rounded-t-3xl px-6 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))] max-h-[88vh] overflow-y-auto space-y-4"
             >
+              <div className="mx-auto w-10 h-1.5 bg-outline-variant rounded-full" />
+
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">CalcRoom</p>

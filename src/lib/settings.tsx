@@ -13,7 +13,8 @@ const translations: Record<Language, Record<string, string>> = {
     'app.themeToLight': 'Switch to light mode',
     'app.themeToDark': 'Switch to dark mode',
 
-    'app.wishTitle': 'Request a feature',
+    'app.wishNav': 'Wish',
+    'app.wishTitle': 'Make a wish',
     'app.wishSubtitle': 'Have an idea for CalcRoom? Share it — it may be built next.',
     'app.wishPlaceholder': 'Describe your feature idea...',
     'app.wishEmailPlaceholder': 'Your email (optional)',
@@ -67,7 +68,8 @@ const translations: Record<Language, Record<string, string>> = {
     'app.themeToLight': 'Zum Hellmodus wechseln',
     'app.themeToDark': 'Zum Dunkelmodus wechseln',
 
-    'app.wishTitle': 'Feature anfragen',
+    'app.wishNav': 'Wunsch',
+    'app.wishTitle': 'Dein Wunsch',
     'app.wishSubtitle': 'Hast du eine Idee für CalcRoom? Teile sie — sie wird vielleicht als Nächstes gebaut.',
     'app.wishPlaceholder': 'Beschreibe deine Feature-Idee...',
     'app.wishEmailPlaceholder': 'Deine E-Mail (optional)',
