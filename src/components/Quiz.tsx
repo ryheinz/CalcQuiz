@@ -59,36 +59,32 @@ function loadDigitMode(): DigitMode {
   return '23';
 }
 
-function randomDigitNumber(digits: number): number {
-  const min = 10 ** (digits - 1);
-  const max = 10 ** digits - 1;
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
 function randomNumberInRange(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-// Numbers start small and grow as the round progresses (progress: 0 → 1).
-// '1': 1-digit, ramping from tiny (2–3) up to 9.
-// '2': 2-digit, ramping from ~10 up to 99.
-// '3': 3-digit, ramping from ~100 up to 999.
-// '23': 2-digit first, then progressively 2 & 3-digit mixed.
+// Numbers progress through three stages as the round goes on (easy → hard).
+// Each size mode defines what those stages feel like:
+//   '1':  1-digit, getting up to 9s.
+//   '2':  2-digit, ramping from ~10s up to the 90s.
+//   '3':  3-digit, ramping from ~100s up to the 900s.
+//   '23': starts with 2-digit questions, then moves into 3-digit as it hardens.
 function sampleOperand(mode: DigitMode, progress: number): number {
+  const stage = progress < 1 / 3 ? 0 : progress < 2 / 3 ? 1 : 2;
   if (mode === '1') {
-    const top = 3 + Math.round(progress * 6);
-    return randomNumberInRange(2, top);
+    const ranges: [number, number][] = [[2, 4], [5, 7], [7, 9]];
+    return randomNumberInRange(...ranges[stage]);
+  }
+  if (mode === '2') {
+    const ranges: [number, number][] = [[10, 39], [30, 69], [60, 99]];
+    return randomNumberInRange(...ranges[stage]);
   }
   if (mode === '3') {
-    const min = 100 + Math.round(progress * 500);
-    return randomNumberInRange(min, 999);
+    const ranges: [number, number][] = [[100, 399], [300, 699], [600, 999]];
+    return randomNumberInRange(...ranges[stage]);
   }
-  if (mode === '23') {
-    const tripleChance = Math.min(1, Math.max(0, (progress - 0.3) / 0.7));
-    return randomDigitNumber(Math.random() < tripleChance ? 3 : 2);
-  }
-  const min = 10 + Math.round(progress * 60);
-  return randomNumberInRange(min, 99);
+  const ranges: [number, number][] = [[10, 49], [100, 499], [400, 999]];
+  return randomNumberInRange(...ranges[stage]);
 }
 
 function buildProblem(operation: Operation, mode: DigitMode, progress: number): Problem {
