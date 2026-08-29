@@ -1,13 +1,13 @@
 import React from 'react';
-import { Calculator, HelpCircle, Sun, Moon } from 'lucide-react';
+import { Calculator, HelpCircle, Sun, Moon, BarChart3 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useSettings } from '@/src/lib/settings';
 import { FeatureWish } from './FeatureWish';
 
 interface LayoutProps {
   children: React.ReactNode;
-  activeTab: 'calculator' | 'quiz';
-  onTabChange: (tab: 'calculator' | 'quiz') => void;
+  activeTab: 'calculator' | 'quiz' | 'progress';
+  onTabChange: (tab: 'calculator' | 'quiz' | 'progress') => void;
 }
 
 export function Layout({ children, activeTab, onTabChange }: LayoutProps) {
@@ -86,6 +86,16 @@ export function Layout({ children, activeTab, onTabChange }: LayoutProps) {
         >
           <HelpCircle className={cn("w-6 h-6", activeTab === 'quiz' && "fill-primary/20")} />
           <span className="text-[11px] font-medium">{t('app.quizTab')}</span>
+        </button>
+        <button
+          onClick={() => onTabChange('progress')}
+          className={cn(
+            "flex flex-col items-center justify-center gap-1 transition-all active:scale-95",
+            activeTab === 'progress' ? "text-primary" : "text-on-surface-variant hover:text-on-surface"
+          )}
+        >
+          <BarChart3 className={cn("w-6 h-6", activeTab === 'progress' && "fill-primary/20")} />
+          <span className="text-[11px] font-medium">{t('app.progressTab')}</span>
         </button>
       </nav>
     </div>

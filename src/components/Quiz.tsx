@@ -6,14 +6,13 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { useSettings } from '@/src/lib/settings';
+import { recordResult, type Operation, type DigitMode } from '@/src/lib/progress';
 
 const DEFAULT_DURATION = 120;
 const DURATIONS = [30, 60, 90, 120];
 const MAX_INPUT_LEN = 7;
 const RAMP_PROBLEMS = 12;
 
-type Operation = 'add' | 'subtract' | 'multiply' | 'divide';
-type DigitMode = '1' | '2' | '3' | '23';
 type Phase = 'setup' | 'active' | 'gameover';
 
 interface Problem {
@@ -120,6 +119,9 @@ export function Quiz() {
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
   const [score, setScore] = useState(0);
+  const [correctCount, setCorrectCount] = useState(0);
+  const [triedCount, setTriedCount] = useState(0);
+  const [skippedCount, setSkippedCount] = useState(0);
   const [roundIndex, setRoundIndex] = useState(0);
   const [duration, setDuration] = useState<number>(loadDuration);
   const [paused, setPaused] = useState(false);
@@ -154,6 +156,9 @@ export function Quiz() {
     setPhase('active');
     setStreak(0);
     setScore(0);
+    setCorrectCount(0);
+    setTriedCount(0);
+    setSkippedCount(0);
     setTimeLeft(duration);
     setPaused(false);
     setShowWrong(false);
@@ -163,6 +168,15 @@ export function Quiz() {
 
   const togglePause = () => setPaused(prev => !prev);
 
+  const snapshotRef = useRef({
+    score: 0, bestStreak: 0, correctCount: 0, triedCount: 0, skippedCount: 0,
+  });
+  useEffect(() => {
+    snapshotRef.current = {
+      score, bestStreak, correctCount, triedCount, skippedCount,
+    };
+  });
+
   useEffect(() => {
     // Pause the countdown while the timer is paused or a feedback/reveal
     // animation is on screen so those locked windows don't eat into thinking time.
@@ -171,6 +185,19 @@ export function Quiz() {
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timer);
+          // Snapshot reflects the final counters for the just-finished round.
+          const s = snapshotRef.current;
+          const finalScore = s.score;
+          recordResult({
+            operation,
+            digitMode,
+            duration,
+            score: finalScore,
+            bestStreak: s.bestStreak,
+            correct: s.correctCount,
+            tried: s.triedCount,
+            skipped: s.skippedCount,
+          });
           setPhase('gameover');
           return 0;
         }
@@ -178,7 +205,7 @@ export function Quiz() {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [phase, paused, showFeedback, showWrong]);
+  }, [phase, paused, showFeedback, showWrong, operation, digitMode, duration]);
 
   const handleDigit = (digit: string) => {
     if (phase !== 'active' || showFeedback || showWrong) return;
@@ -204,6 +231,8 @@ export function Quiz() {
       setStreak(nextStreak);
       setBestStreak(best => Math.max(best, nextStreak));
       setScore(prev => prev + 10);
+      setTriedCount(prev => prev + 1);
+      setCorrectCount(prev => prev + 1);
 
       setFeedbackMessage(t('quiz.correct'));
       setFeedbackKind('correct');
@@ -214,6 +243,7 @@ export function Quiz() {
       }, 800);
     } else {
       setStreak(0);
+      setTriedCount(prev => prev + 1);
       const attemptsSoFar = wrongAttempts + 1;
       setWrongAttempts(attemptsSoFar);
       setShowWrong(true);
@@ -237,6 +267,7 @@ export function Quiz() {
   const skipProblem = () => {
     if (phase !== 'active' || showFeedback || showWrong) return;
     setStreak(0);
+    setSkippedCount(prev => prev + 1);
     generateProblem(operation, roundIndex);
   };
 
@@ -287,7 +318,10 @@ export function Quiz() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const previewProblem = useMemo(() => buildProblem(operation, digitMode, 0.5), [operation, digitMode]);
+  // Show the "start easy" range for the selected size. Progress 0 always
+  // lands on the 2-digit stage for the mixed '23' mode, so the example
+  // makes the "2 & 3 Digits" label obvious instead of always being 3-digit.
+  const previewProblem = useMemo(() => buildProblem(operation, digitMode, 0), [operation, digitMode]);
 
   const progressPercent = (timeLeft / duration) * 100;
   const isLowTime = timeLeft <= 10;

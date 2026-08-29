@@ -10,6 +10,7 @@ const translations: Record<Language, Record<string, string>> = {
   en: {
     'app.calculatorTab': 'Calculator',
     'app.quizTab': 'Quiz',
+    'app.progressTab': 'Progress',
     'app.themeToLight': 'Switch to light mode',
     'app.themeToDark': 'Switch to dark mode',
 
@@ -60,10 +61,26 @@ const translations: Record<Language, Record<string, string>> = {
     'quiz.bestStreak': 'Best streak: {n}x',
     'quiz.playAgain': 'Play Again',
     'quiz.changeScenario': 'Change Scenario',
+
+    'progress.title': 'Progress',
+    'progress.subtitle': 'Track your improvement',
+    'progress.empty': 'No results yet',
+    'progress.emptyHint': 'Play a quiz round and your results will show up here.',
+    'progress.rateTitle': 'Your rating',
+    'progress.accuracy': 'Accuracy: {n}%',
+    'progress.bestStreak': 'Best streak: {n}x',
+    'progress.games': 'Games',
+    'progress.totalPoints': 'Total points',
+    'progress.bestScore': 'Best score',
+    'progress.bestPerScenario': 'Personal bests',
+    'progress.pointsShort': '{n} pts',
+    'progress.recent': 'Recent games',
+    'progress.clearAll': 'Clear history',
   },
   de: {
     'app.calculatorTab': 'Rechner',
     'app.quizTab': 'Quiz',
+    'app.progressTab': 'Fortschritt',
     'app.themeToLight': 'Zum Hellmodus wechseln',
     'app.themeToDark': 'Zum Dunkelmodus wechseln',
 
@@ -115,6 +132,21 @@ const translations: Record<Language, Record<string, string>> = {
     'quiz.bestStreak': 'Beste Serie: {n}x',
     'quiz.playAgain': 'Nochmal spielen',
     'quiz.changeScenario': 'Szenario ändern',
+
+    'progress.title': 'Fortschritt',
+    'progress.subtitle': 'Verfolge deine Verbesserung',
+    'progress.empty': 'Noch keine Ergebnisse',
+    'progress.emptyHint': 'Spiele eine Quizrunde und deine Ergebnisse erscheinen hier.',
+    'progress.rateTitle': 'Deine Bewertung',
+    'progress.accuracy': 'Genauigkeit: {n}%',
+    'progress.bestStreak': 'Beste Serie: {n}x',
+    'progress.games': 'Spiele',
+    'progress.totalPoints': 'Gesamtpunkte',
+    'progress.bestScore': 'Bestes Ergebnis',
+    'progress.bestPerScenario': 'Persönliche Bestleistungen',
+    'progress.pointsShort': '{n} Pkt.',
+    'progress.recent': 'Letzte Spiele',
+    'progress.clearAll': 'Verlauf löschen',
   },
 };
 
