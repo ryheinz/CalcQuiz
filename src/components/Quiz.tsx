@@ -109,6 +109,30 @@ function buildProblem(operation: Operation, mode: DigitMode, progress: number): 
   return { left, right, operatorSymbol: '+', answer: left + right };
 }
 
+// Preview for the setup screen. For the mixed '23' mode we draw one
+// 2-digit and one 3-digit operand so the example shows what the mode
+// actually looks like (numbers grow into 3 digits as it hardens).
+function buildPreviewProblem(operation: Operation, mode: DigitMode): Problem {
+  if (mode !== '23') return buildProblem(operation, mode, 0);
+  const twoDigit = randomNumberInRange(10, 39);
+  const threeDigit = randomNumberInRange(100, 399);
+  if (operation === 'multiply') {
+    return { left: twoDigit, right: threeDigit, operatorSymbol: '×', answer: twoDigit * threeDigit };
+  }
+  if (operation === 'divide') {
+    // Keep the answer a whole number: (3-digit) ÷ (2-digit divisor).
+    const quotient = threeDigit / twoDigit;
+    const whole = Math.round(quotient);
+    return { left: twoDigit * whole, right: twoDigit, operatorSymbol: '÷', answer: whole };
+  }
+  if (operation === 'subtract') {
+    const left = Math.max(threeDigit, twoDigit);
+    const right = Math.min(threeDigit, twoDigit);
+    return { left, right, operatorSymbol: '−', answer: left - right };
+  }
+  return { left: twoDigit, right: threeDigit, operatorSymbol: '+', answer: twoDigit + threeDigit };
+}
+
 export function Quiz() {
   const { t } = useSettings();
   const [operation, setOperation] = useState<Operation>(loadOperation);
@@ -321,7 +345,7 @@ export function Quiz() {
   // Show the "start easy" range for the selected size. Progress 0 always
   // lands on the 2-digit stage for the mixed '23' mode, so the example
   // makes the "2 & 3 Digits" label obvious instead of always being 3-digit.
-  const previewProblem = useMemo(() => buildProblem(operation, digitMode, 0), [operation, digitMode]);
+  const previewProblem = useMemo(() => buildPreviewProblem(operation, digitMode), [operation, digitMode]);
 
   const progressPercent = (timeLeft / duration) * 100;
   const isLowTime = timeLeft <= 10;
