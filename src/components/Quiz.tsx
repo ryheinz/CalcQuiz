@@ -35,6 +35,7 @@ const OPERATION_STORAGE_KEY = 'calcroom-quiz-operation';
 const DIGIT_STORAGE_KEY = 'calcroom-quiz-digits';
 const LEGACY_DIFFICULTY_STORAGE_KEY = 'calcroom-quiz-difficulty';
 const DURATION_STORAGE_KEY = 'calcroom-quiz-duration';
+const EVEN_ODD_STORAGE_KEY = 'calcroom-quiz-even-odd';
 
 function loadDuration(): number {
   const saved = typeof window !== 'undefined' ? window.localStorage.getItem(DURATION_STORAGE_KEY) : null;
@@ -58,8 +59,25 @@ function loadDigitMode(): DigitMode {
   return '23';
 }
 
+function loadEvenOdd(): boolean {
+  const saved = typeof window !== 'undefined' ? window.localStorage.getItem(EVEN_ODD_STORAGE_KEY) : null;
+  return saved === '1';
+}
+
 function randomNumberInRange(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function sampleEven(min: number, max: number): number {
+  const start = min + (min % 2 === 0 ? 0 : 1);
+  if (start > max) return start;
+  return start + 2 * Math.floor(Math.random() * (Math.floor((max - start) / 2) + 1));
+}
+
+function sampleOdd(min: number, max: number): number {
+  const start = min + (min % 2 === 0 ? 1 : 0);
+  if (start > max) return start;
+  return start + 2 * Math.floor(Math.random() * (Math.floor((max - start) / 2) + 1));
 }
 
 // Numbers progress through three stages as the round goes on (easy → hard).
@@ -68,54 +86,73 @@ function randomNumberInRange(min: number, max: number): number {
 //   '2':  2-digit, ramping from ~10s up to the 90s.
 //   '3':  3-digit, ramping from ~100s up to the 900s.
 //   '23': starts with 2-digit questions, then moves into 3-digit as it hardens.
-function sampleOperand(mode: DigitMode, progress: number): number {
+type Parity = 'any' | 'even' | 'odd';
+function sampleOperand(mode: DigitMode, progress: number, parity: Parity = 'any'): number {
   const stage = progress < 1 / 3 ? 0 : progress < 2 / 3 ? 1 : 2;
+  let range: [number, number];
   if (mode === '1') {
-    const ranges: [number, number][] = [[2, 4], [5, 7], [7, 9]];
-    return randomNumberInRange(...ranges[stage]);
+    range = ([[2, 4], [5, 7], [7, 9]] as [number, number][])[stage];
+  } else if (mode === '2') {
+    range = ([[10, 39], [30, 69], [60, 99]] as [number, number][])[stage];
+  } else if (mode === '3') {
+    range = ([[100, 399], [300, 699], [600, 999]] as [number, number][])[stage];
+  } else {
+    range = ([[10, 49], [100, 499], [400, 999]] as [number, number][])[stage];
   }
-  if (mode === '2') {
-    const ranges: [number, number][] = [[10, 39], [30, 69], [60, 99]];
-    return randomNumberInRange(...ranges[stage]);
-  }
-  if (mode === '3') {
-    const ranges: [number, number][] = [[100, 399], [300, 699], [600, 999]];
-    return randomNumberInRange(...ranges[stage]);
-  }
-  const ranges: [number, number][] = [[10, 49], [100, 499], [400, 999]];
-  return randomNumberInRange(...ranges[stage]);
+  if (parity === 'even') return sampleEven(range[0], range[1]);
+  if (parity === 'odd') return sampleOdd(range[0], range[1]);
+  return randomNumberInRange(range[0], range[1]);
 }
 
-function buildProblem(operation: Operation, mode: DigitMode, progress: number): Problem {
+function ensureOperandParity(n: number, parity: Parity): number {
+  if (parity === 'even') return n % 2 === 0 ? n : n + 1;
+  if (parity === 'odd') return n % 2 === 0 ? n + 1 : n;
+  return n;
+}
+
+function buildProblem(operation: Operation, mode: DigitMode, progress: number, evenOdd = false): Problem {
+  const leftParity: Parity = evenOdd ? 'even' : 'any';
+  const rightParity: Parity = evenOdd ? 'odd' : 'any';
   if (operation === 'multiply') {
-    const left = sampleOperand(mode, progress);
-    const right = sampleOperand(mode, progress);
+    const left = sampleOperand(mode, progress, leftParity);
+    const right = sampleOperand(mode, progress, rightParity);
     return { left, right, operatorSymbol: '×', answer: left * right };
   }
   if (operation === 'divide') {
-    const divisor = sampleOperand(mode, progress);
-    const quotient = sampleOperand(mode, progress);
+    // Display is dividend ÷ divisor. For even/odd mode we want dividend
+    // (left) even and divisor (right) odd, so make the quotient even.
+    const divisor = sampleOperand(mode, progress, rightParity);
+    const quotient = sampleOperand(mode, progress, evenOdd ? 'even' : 'any');
     return { left: divisor * quotient, right: divisor, operatorSymbol: '÷', answer: quotient };
   }
   if (operation === 'subtract') {
-    const a = sampleOperand(mode, progress);
-    const b = sampleOperand(mode, progress);
+    // Keep left (even) >= right (odd) so the answer stays non-negative.
+    let a = sampleOperand(mode, progress, leftParity);
+    let b = sampleOperand(mode, progress, rightParity);
+    let guard = 0;
+    while (a < b && guard < 8) {
+      a = sampleOperand(mode, progress, leftParity);
+      b = sampleOperand(mode, progress, rightParity);
+      guard++;
+    }
     const left = Math.max(a, b);
     const right = Math.min(a, b);
     return { left, right, operatorSymbol: '−', answer: left - right };
   }
-  const left = sampleOperand(mode, progress);
-  const right = sampleOperand(mode, progress);
+  const left = sampleOperand(mode, progress, leftParity);
+  const right = sampleOperand(mode, progress, rightParity);
   return { left, right, operatorSymbol: '+', answer: left + right };
 }
 
 // Preview for the setup screen. For the mixed '23' mode we draw one
 // 2-digit and one 3-digit operand so the example shows what the mode
 // actually looks like (numbers grow into 3 digits as it hardens).
-function buildPreviewProblem(operation: Operation, mode: DigitMode): Problem {
-  if (mode !== '23') return buildProblem(operation, mode, 0);
-  const twoDigit = randomNumberInRange(10, 39);
-  const threeDigit = randomNumberInRange(100, 399);
+function buildPreviewProblem(operation: Operation, mode: DigitMode, evenOdd = false): Problem {
+  if (mode !== '23') return buildProblem(operation, mode, 0, evenOdd);
+  const leftParity: Parity = evenOdd ? 'even' : 'any';
+  const rightParity: Parity = evenOdd ? 'odd' : 'any';
+  const twoDigit = sampleOperand('2', 0, leftParity);
+  const threeDigit = sampleOperand('3', 0, rightParity);
   if (operation === 'multiply') {
     return { left: twoDigit, right: threeDigit, operatorSymbol: '×', answer: twoDigit * threeDigit };
   }
@@ -137,8 +174,9 @@ export function Quiz() {
   const { t } = useSettings();
   const [operation, setOperation] = useState<Operation>(loadOperation);
   const [digitMode, setDigitMode] = useState<DigitMode>(loadDigitMode);
+  const [evenOdd, setEvenOdd] = useState<boolean>(loadEvenOdd);
   const [phase, setPhase] = useState<Phase>('setup');
-  const [problem, setProblem] = useState<Problem>(() => buildProblem(loadOperation(), loadDigitMode(), 0));
+  const [problem, setProblem] = useState<Problem>(() => buildProblem(loadOperation(), loadDigitMode(), 0, loadEvenOdd()));
   const [input, setInput] = useState('');
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
@@ -168,13 +206,17 @@ export function Quiz() {
     window.localStorage.setItem(DURATION_STORAGE_KEY, String(duration));
   }, [duration]);
 
+  useEffect(() => {
+    window.localStorage.setItem(EVEN_ODD_STORAGE_KEY, evenOdd ? '1' : '0');
+  }, [evenOdd]);
+
   const generateProblem = useCallback((op: Operation, problemNumber: number) => {
     const progress = Math.min(1, problemNumber / RAMP_PROBLEMS);
-    setProblem(buildProblem(op, digitMode, progress));
+    setProblem(buildProblem(op, digitMode, progress, evenOdd));
     setRoundIndex(problemNumber + 1);
     setInput('');
     setWrongAttempts(0);
-  }, [digitMode]);
+  }, [digitMode, evenOdd]);
 
   const startRound = useCallback(() => {
     setPhase('active');
@@ -345,7 +387,7 @@ export function Quiz() {
   // Show the "start easy" range for the selected size. Progress 0 always
   // lands on the 2-digit stage for the mixed '23' mode, so the example
   // makes the "2 & 3 Digits" label obvious instead of always being 3-digit.
-  const previewProblem = useMemo(() => buildPreviewProblem(operation, digitMode), [operation, digitMode]);
+  const previewProblem = useMemo(() => buildPreviewProblem(operation, digitMode, evenOdd), [operation, digitMode, evenOdd]);
 
   const progressPercent = (timeLeft / duration) * 100;
   const isLowTime = timeLeft <= 10;
@@ -404,6 +446,34 @@ export function Quiz() {
           </div>
           <p className="text-[11px] text-on-surface-variant px-1">{t('quiz.sizeHint')}</p>
         </div>
+
+        <button
+          onClick={() => setEvenOdd(prev => !prev)}
+          className={cn(
+            "w-full flex items-center gap-3 h-14 rounded-xl border px-4 transition-colors",
+            evenOdd
+              ? "bg-primary/10 border-primary/40"
+              : "bg-surface-container border-outline-variant hover:bg-surface-container-high"
+          )}
+        >
+          <span
+            className={cn(
+              "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors",
+              evenOdd ? "bg-primary" : "bg-outline-variant"
+            )}
+          >
+            <span
+              className={cn(
+                "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                evenOdd ? "translate-x-6" : "translate-x-1"
+              )}
+            />
+          </span>
+          <span className="flex-1 text-left">
+            <span className="block text-sm font-bold text-on-surface">{t('quiz.evenOddLabel')}</span>
+            <span className="block text-[11px] text-on-surface-variant">{t('quiz.evenOddHint')}</span>
+          </span>
+        </button>
 
         <div className="w-full space-y-2">
           <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider px-1">{t('quiz.durationLabel')}</p>

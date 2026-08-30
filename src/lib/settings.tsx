@@ -42,6 +42,8 @@ const translations: Record<Language, Record<string, string>> = {
     'quiz.digits.23': '2 & 3 Digits',
     'quiz.example': 'Example',
     'quiz.startQuiz': 'Start Quiz',
+    'quiz.evenOddLabel': 'Even & Odd mix',
+    'quiz.evenOddHint': 'First number even, second number odd (e.g. 34 + 21).',
 
     'quiz.change': 'Change',
     'quiz.currentChallenge': 'Current Challenge',
@@ -113,6 +115,8 @@ const translations: Record<Language, Record<string, string>> = {
     'quiz.durationLabel': 'Zeitlimit',
     'quiz.example': 'Beispiel',
     'quiz.startQuiz': 'Quiz starten',
+    'quiz.evenOddLabel': 'Gerade & Ungerade Mix',
+    'quiz.evenOddHint': 'Erste Zahl gerade, zweite Zahl ungerade (z. B. 34 + 21).',
 
     'quiz.change': 'Ändern',
     'quiz.currentChallenge': 'Aktuelle Aufgabe',
